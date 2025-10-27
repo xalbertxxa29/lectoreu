@@ -39,13 +39,29 @@
       font-family: system-ui, Arial, sans-serif;
     }
     #camera-permission-msg h3 {
-      margin-top: 0;
-      color: #d62828;
+      margin: 0 0 12px;
+      color: #111;
+      letter-spacing: .5px;
     }
     #camera-permission-msg p {
       margin: 10px 0 0;
       font-size: 15px;
       line-height: 1.5;
+      color:#444;
+    }
+    /* Botón PLAY */
+    #camera-permission-msg .btn-play{
+      display:inline-flex; align-items:center; gap:10px;
+      border:none; border-radius:999px; cursor:pointer;
+      padding:14px 22px; font-weight:800; letter-spacing:.3px;
+      background:#3b82f6; color:#fff; box-shadow:0 12px 32px rgba(59,130,246,.35);
+      transition: transform .06s ease, box-shadow .18s ease;
+      margin-top: 6px;
+    }
+    #camera-permission-msg .btn-play:active{ transform: scale(.98); }
+    #camera-permission-msg .btn-play:hover{ box-shadow:0 16px 42px rgba(59,130,246,.45); }
+    #camera-permission-msg .hint{
+      margin:12px 0 0; font-size:13px; color:#6b7280;
     }
   </style>
 
@@ -189,13 +205,17 @@
     </div>
   </div>
 
-  <!-- Mensaje de cámara -->
+  <!-- Mensaje de cámara (INICIAR RONDAS + PLAY) -->
   <div id="camera-permission-msg">
-    <div class="msg-box">
-      <h3>Permiso de Cámara Requerido</h3>
-      <p>Para escanear el código QR, por favor permite el acceso a la cámara.<br><br>
-      Si ves un ícono de candado 🔒 en la barra de direcciones, tócala y selecciona “Permitir cámara”.<br><br>
-      Luego, actualiza esta página.</p>
+    <div class="msg-box" role="dialog" aria-live="polite" aria-modal="true">
+      <h3>INICIAR RONDAS</h3>
+      <button id="start-scan-cta" class="btn-play" type="button" aria-label="Iniciar escáner QR">
+        <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+          <path d="M8 5v14l11-7z" fill="currentColor"></path>
+        </svg>
+        <span>PLAY</span>
+      </button>
+      <p class="hint">Al tocar “PLAY” se solicitará el permiso de cámara.</p>
     </div>
   </div>
 </body>

@@ -59,28 +59,38 @@ const scannerContainer = document.getElementById('scanner-container');
 const optionsContainer = document.getElementById('options-container');
 const formSinNovedadContainer = document.getElementById('form-sin-novedad-container');
 const formConNovedadContainer = document.getElementById('form-con-novedad-container');
+
 const video = document.getElementById('video');
 const canvasElement = document.getElementById('canvas');
 const canvas = canvasElement.getContext('2d', { willReadFrequently: true });
+
 const scannedPointName = document.getElementById('scanned-point-name');
 const btnSinNovedad = document.getElementById('btn-sin-novedad');
 const btnConNovedad = document.getElementById('btn-con-novedad');
 const btnCancelScan = document.getElementById('btn-cancel-scan');
+
 const formSinNovedad = document.getElementById('form-sin-novedad');
 const formConNovedad = document.getElementById('form-con-novedad');
+
 const statusToast = document.getElementById('status-toast');
 const pointNameSin = document.getElementById('point-name-sin-novedad');
 const pointNameCon = document.getElementById('point-name-con-novedad');
+
 const savingOverlay = document.getElementById('saving-overlay');
 const savingMsg = document.getElementById('saving-msg');
+
 const evidenceInput = document.getElementById('evidence-input');
 const evidencePreview = document.getElementById('evidence-preview');
 const evidenceWrap = document.getElementById('evidence-preview-wrap');
 const evidenceBtn = document.getElementById('btn-evidencia');
 const evidenceRemove = document.getElementById('evidence-remove');
+
 const q6Radios = document.querySelectorAll('input[name="q6"]');
 const q6Comment = document.getElementById('q6-comment');
+
+/* Modal de permisos de cámara */
 const cameraMsg = document.getElementById('camera-permission-msg');
+const startScanCta = document.getElementById('start-scan-cta');
 
 /* =============================
    ESTADO
@@ -119,7 +129,7 @@ function hideSaving() {
 ============================= */
 function startScanner() {
   currentScannedData = null;
-  if (cameraMsg) cameraMsg.classList.remove('active');
+  cameraMsg?.classList.remove('active');           // ocultamos modal
 
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
     .then(s => {
@@ -130,8 +140,9 @@ function startScanner() {
     .then(() => requestAnimationFrame(tick))
     .catch(err => {
       console.error('Error de cámara:', err.name, err.message);
-      if (cameraMsg) cameraMsg.classList.add('active');
-      addStartButtonIfNeeded();
+      // Mostramos nuevamente el modal para reintentar
+      cameraMsg?.classList.add('active');
+      startScanCta && (startScanCta.disabled = false, startScanCta.style.opacity = '1');
     });
 }
 
@@ -142,8 +153,9 @@ function stopScanner() {
   }
 }
 
+/* Fallback secundario (no se usa si está el modal PLAY, pero lo dejamos) */
 function addStartButtonIfNeeded() {
-  if (document.getElementById('start-scan-btn')) return;
+  if (document.getElementById('start-scan-btn') || startScanCta) return;
   const btn = document.createElement('button');
   btn.id = 'start-scan-btn';
   btn.textContent = 'Iniciar cámara';
@@ -170,8 +182,9 @@ function drawPath(loc) {
 function tick() {
   if (video.readyState === video.HAVE_ENOUGH_DATA) {
     canvasElement.height = video.videoHeight || 480;
-    canvasElement.width = video.videoWidth || 640;
+    canvasElement.width  = video.videoWidth  || 640;
     canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+
     const imgData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
     const code = (typeof jsQR === 'function') ? jsQR(imgData.data, imgData.width, imgData.height) : null;
 
@@ -179,15 +192,19 @@ function tick() {
       if (code.location) drawPath(code.location);
       const normalized = String(code.data).trim().replace(/\s+/g, '');
       const punto = REFERENCIA_MAP[normalized];
+
       if (punto) {
         stopScanner();
         currentScannedData = { referencia: normalized, puntoMarcacion: punto };
         scannedPointName.textContent = punto;
         scannerContainer.style.display = 'none';
         optionsContainer.style.display = 'flex';
-        if (userInteracted && navigator.vibrate) try { navigator.vibrate(150); } catch {}
+
+        if (userInteracted && navigator.vibrate) { try { navigator.vibrate(150); } catch {} }
         return;
-      } else showToast(`QR no reconocido: ${normalized}`, 'error');
+      } else {
+        showToast(`QR no reconocido: ${normalized}`, 'error');
+      }
     }
   }
   requestAnimationFrame(tick);
@@ -199,23 +216,48 @@ function tick() {
 function showUI(state) {
   [scannerContainer, optionsContainer, formSinNovedadContainer, formConNovedadContainer]
     .forEach(el => (el.style.display = 'none'));
+
   const point = currentScannedData?.puntoMarcacion || '';
   if (pointNameSin) pointNameSin.textContent = point;
   if (pointNameCon) pointNameCon.textContent = point;
 
-  if (state === 'scanner') startScanner(), scannerContainer.style.display = 'block';
-  else if (state === 'options') optionsContainer.style.display = 'flex';
-  else if (state === 'sin-novedad') formSinNovedadContainer.style.display = 'block';
-  else if (state === 'con-novedad') formConNovedadContainer.style.display = 'block';
+  if (state === 'scanner') {
+    scannerContainer.style.display = 'block';
+    // Ya no iniciamos automáticamente: lo hace el botón PLAY
+  } else if (state === 'options') {
+    optionsContainer.style.display = 'flex';
+  } else if (state === 'sin-novedad') {
+    formSinNovedadContainer.style.display = 'block';
+  } else if (state === 'con-novedad') {
+    formConNovedadContainer.style.display = 'block';
+  }
 }
 
 /* =============================
    BOTONES PRINCIPALES
 ============================= */
-btnCancelScan.addEventListener('click', () => { resetEvidence(); resetQuestions(); showUI('scanner'); });
+btnCancelScan.addEventListener('click', () => {
+  resetEvidence(); resetQuestions();
+  showUI('scanner');
+  cameraMsg?.classList.add('active');   // volver a mostrar PLAY
+});
+
 btnSinNovedad.addEventListener('click', () => showUI('sin-novedad'));
 btnConNovedad.addEventListener('click', () => showUI('con-novedad'));
-document.querySelectorAll('.form-cancel').forEach(b => b.addEventListener('click', () => { resetEvidence(); resetQuestions(); showUI('options'); }));
+
+document.querySelectorAll('.form-cancel').forEach(b => b.addEventListener('click', () => {
+  resetEvidence(); resetQuestions();
+  showUI('options');
+}));
+
+/* Botón PLAY del modal: solicita permisos e inicia el escáner */
+startScanCta?.addEventListener('click', () => {
+  startScanCta.disabled = true;
+  startScanCta.style.opacity = '.7';
+  // mostrar vista de escáner y abrir cámara
+  showUI('scanner');
+  startScanner();
+});
 
 /* =============================
    EVIDENCIA
@@ -241,8 +283,10 @@ function fileToOptimizedDataURL(file, max = 1280, q = 0.82) {
 }
 
 function resetEvidence() {
-  evidenceDataUrl = ''; evidenceInput.value = '';
-  evidenceWrap.style.display = 'none'; evidencePreview.src = '';
+  evidenceDataUrl = '';
+  if (evidenceInput) evidenceInput.value = '';
+  evidenceWrap.style.display = 'none';
+  evidencePreview.src = '';
 }
 evidenceBtn?.addEventListener('click', () => evidenceInput?.click());
 evidenceInput?.addEventListener('change', async e => {
@@ -290,7 +334,8 @@ formSinNovedad.addEventListener('submit', async e => {
 
   const payload = buildPayload({ nombreAgente: nombre, observacion: '', tipo: 'SIN NOVEDAD', fotoDataUrl: '', preguntas: {} });
   showSaving('Enviando…'); await sendToSheets(payload);
-  formSinNovedad.reset(); showUI('scanner');
+  formSinNovedad.reset();
+  showUI('scanner'); cameraMsg?.classList.add('active'); // volver a PLAY
 });
 
 formConNovedad.addEventListener('submit', async e => {
@@ -317,7 +362,8 @@ formConNovedad.addEventListener('submit', async e => {
   });
 
   showSaving('Enviando…'); await sendToSheets(payload);
-  formConNovedad.reset(); resetEvidence(); resetQuestions(); showUI('scanner');
+  formConNovedad.reset(); resetEvidence(); resetQuestions();
+  showUI('scanner'); cameraMsg?.classList.add('active'); // volver a PLAY
 });
 
 function buildPayload({ nombreAgente, observacion, tipo, fotoDataUrl, preguntas }) {
@@ -355,4 +401,5 @@ function showToast(msg, type = 'info') {
 /* =============================
    INICIO
 ============================= */
-showUI('scanner');
+showUI('scanner');             // Mostramos el contenedor del escáner
+cameraMsg?.classList.add('active');  // y pedimos iniciar con PLAY

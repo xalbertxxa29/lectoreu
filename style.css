@@ -1,12 +1,16 @@
-/* Estilos Generales */
+/* ============================
+   Estilos Generales (modo oscuro)
+   ============================ */
 html, body {
   margin: 0; padding: 0; height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: #000; color: #fff;
 }
-body { overflow: hidden; } /* el scroll se maneja dentro del modal */
+body { overflow: hidden; } /* el scroll se maneja dentro de los modales */
 
-/* --- Contenedor del Escáner --- */
+/* ============================
+   Contenedor del Escáner
+   ============================ */
 #scanner-container { position: relative; width: 100%; height: 100%; }
 #video { width: 100%; height: 100%; object-fit: cover; }
 .scanner-header{
@@ -16,12 +20,14 @@ body { overflow: hidden; } /* el scroll se maneja dentro del modal */
 #scan-box-overlay{
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: 65vw; height: 65vw; max-width: 300px; max-height: 300px;
-  border: 3px solid rgba(255,255,255,.8);
+  border: 3px solid rgba(255,255,255,.85);
   box-shadow: 0 0 0 4000px rgba(0,0,0,.6);
   border-radius: 12px;
 }
 
-/* --- Estilos de Modales (Opciones y Formularios) --- */
+/* ============================
+   Modales (Opciones y Formularios)
+   ============================ */
 .modal-container{
   position: fixed; inset: 0;
   background: rgba(0,0,0,.7);
@@ -40,7 +46,9 @@ body { overflow: hidden; } /* el scroll se maneja dentro del modal */
   color: #42a5f5; font-weight: 700; margin: 10px 0; display: block;
 }
 
-/* --- Botones --- */
+/* ============================
+   Botones
+   ============================ */
 .button-group{ display: flex; gap: 10px; margin: 20px 0; }
 button{
   flex: 1; padding: 12px; border-radius: 8px; border: none;
@@ -57,7 +65,9 @@ button:active{ transform: scale(.97); }
 .btn-warn{ box-shadow: 0 6px 24px rgba(245,158,11,.25); }
 .btn:hover{ box-shadow: 0 10px 30px rgba(0,0,0,.22); }
 
-/* --- Formularios --- */
+/* ============================
+   Formularios
+   ============================ */
 form{ margin-top: 16px; text-align: left; }
 input[type="text"], textarea{
   width: 100%; padding: 12px; margin: 0 0 14px;
@@ -65,10 +75,14 @@ input[type="text"], textarea{
   background: #1c1c1e; color: #fff; font-size: 16px;
   outline: none;
 }
-input[type="text"]:focus, textarea:focus{ border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.25); }
+input[type="text"]:focus, textarea:focus{
+  border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.25);
+}
 textarea{ resize: vertical; }
 
-/* --- Preguntas (6) Sí/No — versión estética --- */
+/* ============================
+   Preguntas (6) Sí/No — estética
+   ============================ */
 .questions{
   margin: 12px 0 16px 0; padding: 0 2px; list-style: decimal inside;
 }
@@ -93,17 +107,15 @@ textarea{ resize: vertical; }
 }
 .q-pill:hover{ background:#202024; border-color: rgba(255,255,255,.16); }
 .q-pill:active{ transform: translateY(1px); }
-
 .q-pill input[type="radio"]{
-  /* radios más grandes y alineados */
   width: 18px; height: 18px; accent-color: #3b82f6;
 }
-
 .q6-comment-wrap{ margin-top: 10px; }
 .q6-comment-wrap.hidden{ display: none; }
 
-
-/* --- Evidencia (foto) --- */
+/* ============================
+   Evidencia (foto)
+   ============================ */
 .evidence-block{ margin-top: 12px; }
 .evidence-title{ display: block; font-weight: 600; margin-bottom: 8px; }
 .evidence-actions{ display: flex; gap: 10px; align-items: center; }
@@ -113,7 +125,9 @@ textarea{ resize: vertical; }
   box-shadow: 0 6px 18px rgba(0,0,0,.18); object-fit: cover;
 }
 
-/* --- Notificaciones (Toast) --- */
+/* ============================
+   Notificaciones (Toast)
+   ============================ */
 #status-toast{
   position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
   padding: 12px 25px; border-radius: 8px; color: #fff;
@@ -124,7 +138,9 @@ textarea{ resize: vertical; }
 #status-toast.error{ background: #ef4444; }
 #status-toast.offline{ background: #f59e0b; }
 
-/* ===== Overlay moderno de guardado ===== */
+/* ============================
+   Overlay moderno de guardado
+   ============================ */
 #saving-overlay{ position: fixed; inset: 0; display: none; z-index: 2000; }
 #saving-overlay.active{ display: block; }
 #saving-overlay .so-backdrop{
@@ -140,7 +156,6 @@ textarea{ resize: vertical; }
   will-change: transform, opacity;
 }
 #saving-overlay .so-msg{ margin-top: 10px; font-weight: 700; letter-spacing: .2px; }
-
 .so-spinner{
   width: 56px; height: 56px; margin: 6px auto; border-radius: 50%;
   border: 5px solid rgba(15,23,42,.14); border-top-color: #10b981;
@@ -159,11 +174,48 @@ textarea{ resize: vertical; }
   100%{ transform: scale(1); }
 }
 
-/* ===== Microtransiciones de UI ===== */
+/* ============================
+   Microtransiciones de UI
+   ============================ */
 .fade-in{ opacity: 0; transform: translateY(6px); animation: fadeIn .25s ease forwards; }
 @keyframes fadeIn{ to{ opacity: 1; transform: none; } }
 
-/* --- Ajustes responsivos mínimos --- */
+/* ============================
+   Modal de Permisos de Cámara (INICIAR RONDAS)
+   ============================ */
+#camera-permission-msg{
+  position: fixed; inset: 0;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55);
+  z-index: 9999; text-align: center; padding: 20px;
+}
+#camera-permission-msg.active{ display: flex; animation: fadeIn .25s ease-in-out; }
+#camera-permission-msg .msg-box{
+  background: #111; color: #fff;
+  padding: 24px 30px; border-radius: 14px; max-width: 420px; width: calc(100% - 40px);
+  box-shadow: 0 16px 44px rgba(0,0,0,.5);
+}
+#camera-permission-msg h3{
+  margin: 0 0 12px; font-size: 1.15rem; color: #fff; letter-spacing: .4px;
+}
+#camera-permission-msg .btn-play{
+  display: inline-flex; align-items: center; gap: 10px;
+  border: none; border-radius: 999px; cursor: pointer;
+  padding: 14px 22px; font-weight: 800; letter-spacing: .3px;
+  background: #3b82f6; color: #fff;
+  box-shadow: 0 12px 32px rgba(59,130,246,.35);
+  transition: transform .06s ease, box-shadow .18s ease;
+  margin-top: 6px;
+}
+#camera-permission-msg .btn-play:active{ transform: scale(.98); }
+#camera-permission-msg .btn-play:hover{ box-shadow: 0 16px 42px rgba(59,130,246,.45); }
+#camera-permission-msg .hint{
+  margin: 12px 0 0; font-size: 13px; color: #cbd5e1;
+}
+
+/* ============================
+   Responsivo mínimo
+   ============================ */
 @media (min-width: 480px){
   .modal-content{ width: 92%; max-width: 520px; }
 }

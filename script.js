@@ -1,56 +1,53 @@
 // ====== MAPA DE REFERENCIAS (QR → Punto de Marcación) ======
 const REFERENCIA_MAP = {
-  "1758633979512": "VICTOR II-VEHICULAR",
-  "1758634547775": "VICTOR II-PEATONAL",
-  "1758634571039": "INFORMALES",
-  "1758634596499": "P10-RED3",
-  "1758634650734": "P10-RED2",
-  "1758634677927": "P10-RED1",
-  "1758634692534": "ESTACIONAMIENTO ECO1",
-  "1758634711326": "VICTOR I-PEATONAL",
-  "1758634732877": "VICTOR I-VEHICULAR",
-  "1758634750504": "CANTINA",
-  "1758634764633": "COMEDOR",
-  "1758634775499": "INICIO BOULEVARD",
-  "1758634791404": "MEDIO BOULEVARD",
-  "1758634808441": "VICTOR LIMA ALPHA",
-  "1758634821245": "VICTOR LIMA BRAVO",
-  "1758634836852": "VICTOR LIMA",
-  "1758634868639": "ESTACIONAMIENTO ECO5",
-  "1758634887708": "ESTACIONAMIENTO ECO6",
-  "1758634953827": "P10-PUERTA1 HOTEL",
-  "1758634974952": "P10-PUERTA2 HOTEL",
-  "1758635030343": "P10-PUERTA3 HOTEL",
-  "1758635054185": "P20-PUERTA 4 Y 5 HOTEL",
-  "1758635081197": "P20-ALPHA 7 (I) HOTEL",
-  "1758635116434": "P20-ALPHA 7 (II) HOTEL",
-  "1758635142271": "P30-PUERTA3 HOTEL",
-  "1758635169121": "P30-PUERTA2 HOTEL",
-  "1758635190385": "P30-PUERTA1 HOTEL",
-  "1758635230959": "P30-ISLA A HOTEL",
-  "1758635256761": "P30-ISLA B y C HOTEL",
-  "1758635292030": "P30-ISLA D HOTEL",
-  "1758635331905": "P30-TUA (NACIONALES) HOTEL",
-  "1758635371580": "P30-TUA (INTERNACIONALES) HOTEL",
-  "1758635415717": "P30-ISLA E HOTEL",
-  "1758635484558": "P30-ISLA F HOTEL",
-  "1758635502407": "P30-TUA EXTERNO HOTEL",
-  "1758635526689": "P30-TUA INTERNO HOTEL",
-  "1758635580421": "FOX TROP GARITA",
-  "1758635601061": "FOX TROP ALPHA",
-  "1758635623478": "FOX TROP CHARLIE",
-  "1758635647457": "FOX TROP BRAVO",
-  "1758635664054": "PORTON EXTERNO-PAPA GOLF",
-  "1758635691328": "CONTROL VEHICULAR-PAPA GOLF",
-  "1758635714137": "CONTROL VEHICULAR (CIEGO 3)",
-  "1758635746578": "PAPAMAYO-CONTROL VEHICULAR",
-  "1758635774350": "PAPA SIERRA",
-  "1758635791581": "TANGO ALPHA",
+  "1761055082506": "1",
+  "1761055097257": "2",
+  "1761055105341": "3",
+  "1761055598535": "4",
+  "1761055619574": "5",
+  "1761055731912": "6",
+  "1761055748808": "7",
+  "1761055758075": "8",
+  "1761055765742": "9",
+  "1761056924033": "10",
+  "1761056935227": "11",
+  "1761056952702": "12",
+  "1761056960727": "13",
+  "1761056968594": "14",
+  "1761056974553": "15",
+  "1761058333445": "16",
+  "1761058340305": "17",
+  "1761058346339": "18",
+  "1761058353137": "19",
+  "1761058359372": "20",
+  "1761058367017": "21",
+  "1761058388859": "22",
+  "1761058395655": "23",
+  "1761058402461": "24",
+  "1761058423101": "25",
+  "1761058429185": "27",
+  "1761058447734": "28",
+  "1761058454312": "29",
+  "1761058460400": "30",
   "1760037324942": "MARCACION QR"
 };
 
-// ====== URL DE TU WEB APP (Google Apps Script) ======
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbysgEDh5D8QcRv7qFnQJKsScB1OoV63KEehL5fNsJ2-OhLYq7XKmhz9bhi73IjbbK_y/exec";
+// ============================
+//  Firebase (compat)
+// ============================
+const fb = window.firebase;
+// Inicializa sólo si no hay app
+if (fb && !fb.apps.length) fb.initializeApp(window.firebaseConfig || {});
+const db = fb?.firestore?.();
+const storage = fb?.storage?.();
+
+// Habilita persistencia (si el WebView lo permite)
+if (db && db.enablePersistence) {
+  db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+}
+
+// ===== Colección destino en Firestore =====
+const FIRE_COLLECTION = 'RONDAS';   // cámbiala si quieres otro nombre
 
 /* =============================
    ELEMENTOS DE UI
@@ -118,7 +115,7 @@ function showSaving(msg = 'Guardando…') {
 function showSaved(msg = 'Guardado') {
   savingOverlay?.classList.add('success');
   savingMsg.textContent = msg;
-  setTimeout(hideSaving, 1000);
+  setTimeout(hideSaving, 900);
 }
 function hideSaving() {
   savingOverlay?.classList.remove('active', 'success');
@@ -129,7 +126,7 @@ function hideSaving() {
 ============================= */
 function startScanner() {
   currentScannedData = null;
-  cameraMsg?.classList.remove('active');           // ocultamos modal
+  cameraMsg?.classList.remove('active');
 
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
     .then(s => {
@@ -140,7 +137,6 @@ function startScanner() {
     .then(() => requestAnimationFrame(tick))
     .catch(err => {
       console.error('Error de cámara:', err.name, err.message);
-      // Mostramos nuevamente el modal para reintentar
       cameraMsg?.classList.add('active');
       startScanCta && (startScanCta.disabled = false, startScanCta.style.opacity = '1');
     });
@@ -151,21 +147,6 @@ function stopScanner() {
     stream.getTracks().forEach(t => t.stop());
     stream = null;
   }
-}
-
-/* Fallback secundario (no se usa si está el modal PLAY, pero lo dejamos) */
-function addStartButtonIfNeeded() {
-  if (document.getElementById('start-scan-btn') || startScanCta) return;
-  const btn = document.createElement('button');
-  btn.id = 'start-scan-btn';
-  btn.textContent = 'Iniciar cámara';
-  Object.assign(btn.style, {
-    position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-    padding: '12px 18px', borderRadius: '10px',
-    background: '#3b82f6', color: '#fff', fontWeight: '600', cursor: 'pointer'
-  });
-  btn.onclick = () => { btn.remove(); startScanner(); };
-  scannerContainer.appendChild(btn);
 }
 
 function drawPath(loc) {
@@ -199,7 +180,6 @@ function tick() {
         scannedPointName.textContent = punto;
         scannerContainer.style.display = 'none';
         optionsContainer.style.display = 'flex';
-
         if (userInteracted && navigator.vibrate) { try { navigator.vibrate(150); } catch {} }
         return;
       } else {
@@ -223,7 +203,6 @@ function showUI(state) {
 
   if (state === 'scanner') {
     scannerContainer.style.display = 'block';
-    // Ya no iniciamos automáticamente: lo hace el botón PLAY
   } else if (state === 'options') {
     optionsContainer.style.display = 'flex';
   } else if (state === 'sin-novedad') {
@@ -239,28 +218,20 @@ function showUI(state) {
 btnCancelScan.addEventListener('click', () => {
   resetEvidence(); resetQuestions();
   showUI('scanner');
-  cameraMsg?.classList.add('active');   // volver a mostrar PLAY
+  cameraMsg?.classList.add('active'); // volver a PLAY
 });
-
 btnSinNovedad.addEventListener('click', () => showUI('sin-novedad'));
 btnConNovedad.addEventListener('click', () => showUI('con-novedad'));
-
 document.querySelectorAll('.form-cancel').forEach(b => b.addEventListener('click', () => {
-  resetEvidence(); resetQuestions();
-  showUI('options');
+  resetEvidence(); resetQuestions(); showUI('options');
 }));
-
-/* Botón PLAY del modal: solicita permisos e inicia el escáner */
 startScanCta?.addEventListener('click', () => {
-  startScanCta.disabled = true;
-  startScanCta.style.opacity = '.7';
-  // mostrar vista de escáner y abrir cámara
-  showUI('scanner');
-  startScanner();
+  startScanCta.disabled = true; startScanCta.style.opacity = '.7';
+  showUI('scanner'); startScanner();
 });
 
 /* =============================
-   EVIDENCIA
+   EVIDENCIA (imagen)
 ============================= */
 function fileToOptimizedDataURL(file, max = 1280, q = 0.82) {
   return new Promise((resolve, reject) => {
@@ -281,7 +252,13 @@ function fileToOptimizedDataURL(file, max = 1280, q = 0.82) {
     r.onerror = reject; r.readAsDataURL(file);
   });
 }
-
+function dataURLtoBlob(dataURL) {
+  const [head, body] = dataURL.split(',');
+  const mime = head.match(/:(.*?);/)[1] || 'image/jpeg';
+  const bin = atob(body); const len = bin.length; const arr = new Uint8Array(len);
+  for (let i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
 function resetEvidence() {
   evidenceDataUrl = '';
   if (evidenceInput) evidenceInput.value = '';
@@ -324,7 +301,7 @@ q6Radios.forEach(r => r.addEventListener('change', () => {
 }));
 
 /* =============================
-   ENVÍO
+   ENVÍO → FIREBASE
 ============================= */
 formSinNovedad.addEventListener('submit', async e => {
   e.preventDefault();
@@ -332,10 +309,14 @@ formSinNovedad.addEventListener('submit', async e => {
   const nombre = document.getElementById('agent-name-sin-novedad').value.trim();
   if (!nombre) return showToast('Ingresa tu Nombre y Apellido.', 'error');
 
-  const payload = buildPayload({ nombreAgente: nombre, observacion: '', tipo: 'SIN NOVEDAD', fotoDataUrl: '', preguntas: {} });
-  showSaving('Enviando…'); await sendToSheets(payload);
+  const payload = buildPayload({
+    nombreAgente: nombre, observacion: '', tipo: 'SIN NOVEDAD', fotoDataUrl: '', preguntas: {}
+  });
+
+  showSaving('Guardando en Firebase…');
+  await sendToFirebase(payload);
   formSinNovedad.reset();
-  showUI('scanner'); cameraMsg?.classList.add('active'); // volver a PLAY
+  showUI('scanner'); cameraMsg?.classList.add('active');
 });
 
 formConNovedad.addEventListener('submit', async e => {
@@ -350,8 +331,6 @@ formConNovedad.addEventListener('submit', async e => {
   if (![p1,p2,p3,p4,p5,p6].every(v => v === 'SI' || v === 'NO'))
     return showToast('Responde todas las preguntas (1–6).', 'error');
   const p6Comentario = (p6 === 'SI') ? q6Comment?.value.trim() : '';
-  if (p6 === 'SI' && !p6Comentario)
-    return showToast('Escribe el comentario de la pregunta 6.', 'error');
 
   const payload = buildPayload({
     nombreAgente: nombre,
@@ -361,30 +340,66 @@ formConNovedad.addEventListener('submit', async e => {
     preguntas: { p1,p2,p3,p4,p5,p6,p6Comentario }
   });
 
-  showSaving('Enviando…'); await sendToSheets(payload);
+  showSaving('Guardando en Firebase…');
+  await sendToFirebase(payload);
   formConNovedad.reset(); resetEvidence(); resetQuestions();
-  showUI('scanner'); cameraMsg?.classList.add('active'); // volver a PLAY
+  showUI('scanner'); cameraMsg?.classList.add('active');
 });
 
 function buildPayload({ nombreAgente, observacion, tipo, fotoDataUrl, preguntas }) {
   return {
     puntoMarcacion: currentScannedData.puntoMarcacion,
-    fechaHora: new Date().toISOString(),
-    nombreAgente, observacion, tipo, fotoDataUrl, preguntas
+    referenciaQR: currentScannedData.referencia,
+    fechaHoraISO: new Date().toISOString(),
+    nombreAgente, observacion, tipo, fotoDataUrl, preguntas,
+    meta: {
+      ua: navigator.userAgent || '',
+      platform: navigator.platform || '',
+      lang: navigator.language || 'es',
+    }
   };
 }
 
-async function sendToSheets(payload) {
+async function sendToFirebase(payload) {
+  if (!db) {
+    hideSaving(); showToast('Firebase no inicializado.', 'error');
+    return;
+  }
+
   try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
-    });
-    showSaved(); showToast('Registro guardado.', 'success');
+    // 1) Subir evidencia (si hay)
+    let fotoUrl = '';
+    if (payload.fotoDataUrl && storage) {
+      const stamp = Date.now();
+      const safeName = (payload.nombreAgente || 'anon').replace(/[^\w.-]+/g, '_');
+      const path = `evidencias/${payload.referenciaQR}/${stamp}_${safeName}.jpg`;
+      const blob = dataURLtoBlob(payload.fotoDataUrl);
+      const ref = storage.ref().child(path);
+      await ref.put(blob, { contentType: blob.type });
+      fotoUrl = await ref.getDownloadURL();
+    }
+
+    // 2) Guardar doc en Firestore
+    const docData = {
+      punto: payload.puntoMarcacion,
+      referenciaQR: payload.referenciaQR,
+      nombreAgente: payload.nombreAgente,
+      observacion: payload.observacion,
+      tipo: payload.tipo,                // "SIN NOVEDAD" | "CON NOVEDAD"
+      preguntas: payload.preguntas || {},
+      evidenciaUrl: fotoUrl || '',
+      fechaHoraISO: payload.fechaHoraISO,
+      createdAt: fb.firestore.FieldValue.serverTimestamp(),
+      meta: payload.meta || {}
+    };
+    await db.collection(FIRE_COLLECTION).add(docData);
+
+    showSaved('Guardado');
+    showToast('Registro guardado en Firebase.', 'success');
   } catch (err) {
-    console.error(err); hideSaving(); showToast('Error al enviar registro.', 'error');
+    console.error(err);
+    hideSaving();
+    showToast('No se pudo guardar en Firebase.', 'error');
   }
 }
 
@@ -401,5 +416,5 @@ function showToast(msg, type = 'info') {
 /* =============================
    INICIO
 ============================= */
-showUI('scanner');             // Mostramos el contenedor del escáner
-cameraMsg?.classList.add('active');  // y pedimos iniciar con PLAY
+showUI('scanner');
+cameraMsg?.classList.add('active');  // Mostrar “INICIAR RONDAS”

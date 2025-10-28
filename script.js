@@ -33,11 +33,18 @@ const REFERENCIA_MAP = {
 };
 
 // ============================
-//  Firebase (compat)
+//  Firebase (compat) — inicialización segura
 // ============================
-const fb = window.firebase;
-// Inicializa sólo si no hay app
-if (fb && !fb.apps.length) fb.initializeApp(window.firebaseConfig || {});
+const fb = window.firebase || self.firebase;
+if (fb && !fb.apps.length) {
+  if (!window.firebaseConfig || !window.firebaseConfig.projectId) {
+    console.error('Falta window.firebaseConfig o projectId');
+    alert('No se encontró la configuración de Firebase. Verifica que "firebase-config.js" cargue antes que "script.js".');
+    throw new Error('Firebase config ausente');
+  }
+  fb.initializeApp(window.firebaseConfig);
+  console.log('Firebase listo →', fb.app().options.projectId);
+}
 const db = fb?.firestore?.();
 const storage = fb?.storage?.();
 
@@ -47,11 +54,11 @@ if (db && db.enablePersistence) {
 }
 
 // ===== Colección destino en Firestore =====
-const FIRE_COLLECTION = 'RONDAS';   // cámbiala si quieres otro nombre
+const FIRE_COLLECTION = 'RONDAS';
 
-/* =============================
-   ELEMENTOS DE UI
-============================= */
+// =============================
+// ELEMENTOS DE UI
+// =============================
 const scannerContainer = document.getElementById('scanner-container');
 const optionsContainer = document.getElementById('options-container');
 const formSinNovedadContainer = document.getElementById('form-sin-novedad-container');
@@ -76,54 +83,71 @@ const pointNameCon = document.getElementById('point-name-con-novedad');
 const savingOverlay = document.getElementById('saving-overlay');
 const savingMsg = document.getElementById('saving-msg');
 
-const evidenceInput = document.getElementById('evidence-input');
+// Evidencia
+const evidenceInput = document.getElementById('evidence-input'); // cámara (con capture)
 const evidencePreview = document.getElementById('evidence-preview');
 const evidenceWrap = document.getElementById('evidence-preview-wrap');
 const evidenceBtn = document.getElementById('btn-evidencia');
 const evidenceRemove = document.getElementById('evidence-remove');
 
+// === Sheet evidencia (Cámara / Galería) ===
+const sheetEvid = document.getElementById('sheet-evidencia');
+const optCam = document.getElementById('opt-cam');
+const optGal = document.getElementById('opt-gal');
+const optCancelar = document.getElementById('opt-cancelar');
+const evidenceInputGallery = document.getElementById('evidence-input-gallery');
+
+function openSheet()  { sheetEvid?.classList.remove('hidden'); }
+function closeSheet() { sheetEvid?.classList.add('hidden'); }
+optCancelar?.addEventListener('click', closeSheet);
+sheetEvid?.addEventListener('click', (e)=>{ if(e.target === sheetEvid) closeSheet(); });
+evidenceBtn?.addEventListener('click', (e)=>{ e.preventDefault(); openSheet(); });
+optCam?.addEventListener('click', ()=>{ evidenceInput?.click(); closeSheet(); });
+optGal?.addEventListener('click', ()=>{ evidenceInputGallery?.click(); closeSheet(); });
+
+// === Pregunta 6 ===
 const q6Radios = document.querySelectorAll('input[name="q6"]');
 const q6Comment = document.getElementById('q6-comment');
 
-/* Modal de permisos de cámara */
+// Modal de permisos de cámara
 const cameraMsg = document.getElementById('camera-permission-msg');
 const startScanCta = document.getElementById('start-scan-cta');
 
-/* =============================
-   ESTADO
-============================= */
+// =============================
+// ESTADO
+// =============================
 let stream = null;
 let currentScannedData = null;
 let evidenceDataUrl = '';
 let userInteracted = false;
 window.addEventListener('pointerdown', () => (userInteracted = true), { once: true });
 
-/* =============================
-   SERVICE WORKER
-============================= */
+// =============================
+// SERVICE WORKER
+// =============================
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(console.error);
 }
 
-/* =============================
-   OVERLAY DE GUARDADO
-============================= */
+// =============================
+// OVERLAY DE GUARDADO
+// =============================
 function showSaving(msg = 'Guardando…') {
   savingOverlay?.classList.add('active');
-  savingMsg.textContent = msg;
+  if (savingMsg) savingMsg.textContent = msg;
 }
 function showSaved(msg = 'Guardado') {
   savingOverlay?.classList.add('success');
-  savingMsg.textContent = msg;
+  if (savingMsg) savingMsg.textContent = msg;
   setTimeout(hideSaving, 900);
 }
 function hideSaving() {
   savingOverlay?.classList.remove('active', 'success');
 }
 
-/* =============================
-   ESCÁNER QR
-============================= */
+// =============================
+// ESCÁNER QR
+// =============================
 function startScanner() {
   currentScannedData = null;
   cameraMsg?.classList.remove('active');
@@ -138,7 +162,7 @@ function startScanner() {
     .catch(err => {
       console.error('Error de cámara:', err.name, err.message);
       cameraMsg?.classList.add('active');
-      startScanCta && (startScanCta.disabled = false, startScanCta.style.opacity = '1');
+      if (startScanCta) { startScanCta.disabled = false; startScanCta.style.opacity = '1'; }
     });
 }
 
@@ -177,7 +201,7 @@ function tick() {
       if (punto) {
         stopScanner();
         currentScannedData = { referencia: normalized, puntoMarcacion: punto };
-        scannedPointName.textContent = punto;
+        if (scannedPointName) scannedPointName.textContent = punto;
         scannerContainer.style.display = 'none';
         optionsContainer.style.display = 'flex';
         if (userInteracted && navigator.vibrate) { try { navigator.vibrate(150); } catch {} }
@@ -190,9 +214,9 @@ function tick() {
   requestAnimationFrame(tick);
 }
 
-/* =============================
-   UI STATES
-============================= */
+// =============================
+// UI STATES
+// =============================
 function showUI(state) {
   [scannerContainer, optionsContainer, formSinNovedadContainer, formConNovedadContainer]
     .forEach(el => (el.style.display = 'none'));
@@ -212,16 +236,17 @@ function showUI(state) {
   }
 }
 
-/* =============================
-   BOTONES PRINCIPALES
-============================= */
-btnCancelScan.addEventListener('click', () => {
+// =============================
+// BOTONES PRINCIPALES
+// =============================
+btnCancelScan?.addEventListener('click', () => {
+  stopScanner();
   resetEvidence(); resetQuestions();
   showUI('scanner');
   cameraMsg?.classList.add('active'); // volver a PLAY
 });
-btnSinNovedad.addEventListener('click', () => showUI('sin-novedad'));
-btnConNovedad.addEventListener('click', () => showUI('con-novedad'));
+btnSinNovedad?.addEventListener('click', () => showUI('sin-novedad'));
+btnConNovedad?.addEventListener('click', () => showUI('con-novedad'));
 document.querySelectorAll('.form-cancel').forEach(b => b.addEventListener('click', () => {
   resetEvidence(); resetQuestions(); showUI('options');
 }));
@@ -230,9 +255,9 @@ startScanCta?.addEventListener('click', () => {
   showUI('scanner'); startScanner();
 });
 
-/* =============================
-   EVIDENCIA (imagen)
-============================= */
+// =============================
+// EVIDENCIA (imagen)
+// =============================
 function fileToOptimizedDataURL(file, max = 1280, q = 0.82) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -252,38 +277,53 @@ function fileToOptimizedDataURL(file, max = 1280, q = 0.82) {
     r.onerror = reject; r.readAsDataURL(file);
   });
 }
+
 function dataURLtoBlob(dataURL) {
   const [head, body] = dataURL.split(',');
-  const mime = head.match(/:(.*?);/)[1] || 'image/jpeg';
+  const mime = head.match(/:(.*?);/)?.[1] || 'image/jpeg';
   const bin = atob(body); const len = bin.length; const arr = new Uint8Array(len);
-  for (let i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
+  for (let i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
   return new Blob([arr], { type: mime });
 }
+
 function resetEvidence() {
   evidenceDataUrl = '';
   if (evidenceInput) evidenceInput.value = '';
+  if (evidenceInputGallery) evidenceInputGallery.value = '';
   evidenceWrap.style.display = 'none';
   evidencePreview.src = '';
 }
-evidenceBtn?.addEventListener('click', () => evidenceInput?.click());
-evidenceInput?.addEventListener('change', async e => {
-  const file = e.target.files?.[0]; if (!file) return;
+
+// único pipeline para ambos inputs
+async function processEvidenceFile(file){
+  if(!file) return;
   showSaving('Procesando evidencia…');
-  try {
+  try{
     evidenceDataUrl = await fileToOptimizedDataURL(file);
     evidencePreview.src = evidenceDataUrl;
     evidenceWrap.style.display = 'flex';
     hideSaving(); showToast('Evidencia lista.', 'success');
-  } catch (err) {
-    console.error(err); hideSaving(); resetEvidence();
+  }catch(err){
+    console.error(err); hideSaving();
+    resetEvidence();
     showToast('No se pudo procesar la evidencia.', 'error');
   }
+}
+
+// listeners (solo una vez; sin duplicados)
+evidenceInput?.addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  await processEvidenceFile(file);
+});
+evidenceInputGallery?.addEventListener('change', async e => {
+  const file = e.target.files?.[0];
+  await processEvidenceFile(file);
 });
 evidenceRemove?.addEventListener('click', resetEvidence);
 
-/* =============================
-   PREGUNTAS
-============================= */
+// =============================
+// PREGUNTAS
+// =============================
 function resetQuestions() {
   ['q1','q2','q3','q4','q5','q6'].forEach(n =>
     document.querySelectorAll(`input[name="${n}"]`).forEach(r => (r.checked = false))
@@ -296,14 +336,14 @@ function resetQuestions() {
 q6Radios.forEach(r => r.addEventListener('change', () => {
   const wrap = q6Comment?.closest('.q6-comment-wrap');
   const isYes = document.querySelector('input[name="q6"][value="SI"]')?.checked;
-  if (isYes) { wrap?.classList.remove('hidden'); q6Comment.required = true; }
-  else { wrap?.classList.add('hidden'); q6Comment.required = false; q6Comment.value = ''; }
+  if (isYes) { wrap?.classList.remove('hidden'); if (q6Comment) q6Comment.required = true; }
+  else { wrap?.classList.add('hidden'); if (q6Comment) { q6Comment.required = false; q6Comment.value = ''; } }
 }));
 
-/* =============================
-   ENVÍO → FIREBASE
-============================= */
-formSinNovedad.addEventListener('submit', async e => {
+// =============================
+// ENVÍO → FIREBASE
+// =============================
+formSinNovedad?.addEventListener('submit', async e => {
   e.preventDefault();
   if (!currentScannedData) return showToast('Primero escanea un punto.', 'error');
   const nombre = document.getElementById('agent-name-sin-novedad').value.trim();
@@ -319,7 +359,7 @@ formSinNovedad.addEventListener('submit', async e => {
   showUI('scanner'); cameraMsg?.classList.add('active');
 });
 
-formConNovedad.addEventListener('submit', async e => {
+formConNovedad?.addEventListener('submit', async e => {
   e.preventDefault();
   if (!currentScannedData) return showToast('Primero escanea un punto.', 'error');
   const nombre = document.getElementById('agent-name-con-novedad').value.trim();
@@ -403,9 +443,9 @@ async function sendToFirebase(payload) {
   }
 }
 
-/* =============================
-   TOAST
-============================= */
+// =============================
+// TOAST
+// =============================
 function showToast(msg, type = 'info') {
   if (!statusToast) return alert(msg);
   statusToast.textContent = msg;
@@ -413,8 +453,8 @@ function showToast(msg, type = 'info') {
   setTimeout(() => (statusToast.className = statusToast.className.replace('show', '')), 3000);
 }
 
-/* =============================
-   INICIO
-============================= */
+// =============================
+// INICIO
+// =============================
 showUI('scanner');
 cameraMsg?.classList.add('active');  // Mostrar “INICIAR RONDAS”

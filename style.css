@@ -219,3 +219,15 @@ textarea{ resize: vertical; }
 @media (min-width: 480px){
   .modal-content{ width: 92%; max-width: 520px; }
 }
+
+
+/* === Sheet de evidencia === */
+.sheet.hidden{display:none}
+.sheet{position:fixed;inset:0;display:grid;place-items:end center;background:rgba(0,0,0,.35);z-index:3000}
+.sheet-card{width:100%;max-width:520px;background:#111;color:#fff;border:1px solid #333;border-radius:16px 16px 0 0;padding:16px 16px 24px;box-shadow:0 -16px 40px rgba(0,0,0,.35)}
+.sheet-card h3{margin:4px 0 10px;font-size:1.05rem}
+.sheet-card .btn{width:100%;margin:8px 0}
+.btn{padding:10px 14px;border-radius:10px;border:1px solid #2a2a2a;background:#1b1b1b;color:#fff}
+.btn-primary{background:#d62828;border-color:#b71c1c}
+.btn-ghost{background:transparent;border-color:transparent;color:#bbb}
+

@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+  <meta name="theme-color" content="#000000" />
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Control de Marcación</title>
 
   <link rel="stylesheet" href="style.css" />
   <link rel="manifest" href="manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
 
   <!-- Estilos adicionales -->
   <style>
@@ -226,5 +231,19 @@
       <p class="hint">Al tocar “PLAY” se solicitará el permiso de cámara.</p>
     </div>
   </div>
+
+  <!-- Sheet de evidencia (Cámara / Galería) -->
+  <div id="sheet-evidencia" class="sheet hidden" role="dialog" aria-modal="true">
+    <div class="sheet-card">
+      <h3>Agregar evidencia</h3>
+      <button id="opt-cam" class="btn btn-primary">Abrir cámara</button>
+      <button id="opt-gal" class="btn">Adjuntar desde galería</button>
+      <button id="opt-cancelar" class="btn btn-ghost">Cancelar</button>
+    </div>
+  </div>
+
+  <!-- Input de galería adicional -->
+  <input id="evidence-input-gallery" type="file" accept="image/*" hidden />
+
 </body>
 </html>

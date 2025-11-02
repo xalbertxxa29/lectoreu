@@ -1,134 +1,188 @@
-/* sw.js — v7 (LectorQR)
-   - Navigation Preload
-   - Network-first para HTML con fallback a ./index.html
-   - Stale-While-Revalidate para estáticos same-origin (CSS/JS/IMG/Manifest)
-   - Precache tolerante a fallos
-   - Limpieza de caches antiguos por prefijo
-   - SKIP_WAITING + clients.claim
+/* sw.js (v61) — Offline-first para WebView
+   Estrategias:
+   - Navegación/HTML: cache-first con fallback a red (abre sin internet).
+   - JS/CSS: stale-while-revalidate (rápido + actualización en bg).
+   - Imágenes/Fonts: cache-first.
+   - NO intercepta métodos ≠ GET. Evita Firebase/Google externos.
+   - Precarga App Shell. Limpia versiones viejas.
+   - skipWaiting + clients.claim.
 */
 
-const CACHE_PREFIX = 'lectorqr-';
-const CACHE_NAME   = `${CACHE_PREFIX}v7`;
+const SW_VERSION = 'v61';
+const PRECACHE   = `precache-${SW_VERSION}`;
+const RUNTIME_ASSETS = `assets-${SW_VERSION}`;
+const RUNTIME_MEDIA  = `media-${SW_VERSION}`;
 
-// Ajusta rutas si cambias nombres/ubicación de archivos
-const PRECACHE = [
+/* ==== Precarga local (ajusta si cambias nombres) ==== */
+const PRECACHE_URLS = [
+  // App shell
   './',
   './index.html',
   './style.css',
   './script.js',
+  './firebase-config.js',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+
+  // Librerías locales (críticas para funcionar sin red)
+  './libs/jsQR.js',
+  './libs/firebase-app-compat.js',
+  './libs/firebase-firestore-compat.js',
+  './libs/firebase-storage-compat.js'
 ];
 
-// ---------- INSTALL: precache + navigation preload
+// Dominios que NO debemos cachear (Firebase/Google/CDNs externos)
+const BLOCKED_HOSTNAMES = new Set([
+  'www.gstatic.com',
+  'www.google.com',
+  'apis.google.com',
+  'firebase.googleapis.com',
+  'firestore.googleapis.com',
+  'firebasestorage.googleapis.com',
+  'identitytoolkit.googleapis.com',
+  'securetoken.googleapis.com',
+  'lh3.googleusercontent.com',
+  'fonts.googleapis.com',
+  'fonts.gstatic.com',
+  'cdn.jsdelivr.net',
+]);
+
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    for (const url of PRECACHE) {
-      try {
-        await cache.add(new Request(url, { cache: 'reload' }));
-      } catch (e) {
-        // Si un recurso falla (404/cross-origin), lo omitimos
-      }
-    }
-    if ('navigationPreload' in self.registration) {
-      try { await self.registration.navigationPreload.enable(); } catch {}
-    }
+    const cache = await caches.open(PRECACHE);
+    await cache.addAll(PRECACHE_URLS);
+    // Activar inmediatamente la nueva versión
     await self.skipWaiting();
   })());
 });
 
-// ---------- ACTIVATE: limpia caches viejos y toma control
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(
       keys
-        .filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME)
+        .filter(k => ![PRECACHE, RUNTIME_ASSETS, RUNTIME_MEDIA].includes(k))
         .map(k => caches.delete(k))
     );
     await self.clients.claim();
   })());
 });
 
-// Utilidad: detectar extensión de archivo
-const STATIC_EXTS = ['css','js','png','jpg','jpeg','gif','webp','ico','svg','json','webmanifest'];
-const isStaticRequest = (urlObj) => {
-  const path = urlObj.pathname;
-  const last = path.split('/').pop() || '';
-  const ext  = last.includes('.') ? last.split('.').pop().toLowerCase() : '';
-  return STATIC_EXTS.includes(ext);
-};
+function isMethodCacheable(req) {
+  return req.method === 'GET';
+}
 
-// ---------- FETCH: estrategias por tipo
+function isSameOrigin(reqUrl) {
+  return reqUrl.origin === self.location.origin;
+}
+
+function isBlockedExternal(reqUrl) {
+  return !isSameOrigin(reqUrl) && BLOCKED_HOSTNAMES.has(reqUrl.hostname);
+}
+
+function isAsset(req) {
+  const url = new URL(req.url);
+  return (
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.mjs')
+  );
+}
+
+function isMedia(req) {
+  const url = new URL(req.url);
+  return (
+    url.pathname.match(/\.(png|jpg|jpeg|webp|gif|svg|ico|bmp)$/i) ||
+    url.pathname.match(/\.(woff2?|ttf|otf|eot)$/i)
+  );
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET') return;
+
+  // No interceptar métodos ≠ GET
+  if (!isMethodCacheable(req)) return;
 
   const url = new URL(req.url);
 
-  // 1) Navegación (document) → Network-first + fallback a index
-  if (req.mode === 'navigate') {
+  // No interceptar peticiones a dominios externos bloqueados
+  if (isBlockedExternal(url)) return;
+
+  // Navegaciones/HTML → cache-first
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
     event.respondWith((async () => {
-      try {
-        const preload = await event.preloadResponse;
-        if (preload) return preload;
-
-        const fresh = await fetch(req);
-        // Cachea index.html para fallback futuro
-        const cache = await caches.open(CACHE_NAME);
-        try {
-          // Sólo cachea si es same-origin y OK
-          if (fresh.ok && fresh.type === 'basic') {
-            cache.put('./index.html', fresh.clone());
-          }
-        } catch {}
-        return fresh;
-      } catch {
-        const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match('./index.html');
-        return cached || Response.error();
-      }
-    })());
-    return;
-  }
-
-  // 2) Estáticos same-origin → Stale-While-Revalidate
-  if (url.origin === self.location.origin && isStaticRequest(url)) {
-    event.respondWith((async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const cachedPromise = cache.match(req);
-      const networkPromise = fetch(req)
-        .then((res) => {
-          if (res && res.ok && res.type === 'basic') {
-            cache.put(req, res.clone()).catch(() => {});
-          }
-          return res;
-        })
-        .catch(() => null);
-
-      const cached = await cachedPromise;
+      const cache = await caches.open(PRECACHE);
+      const cached = await cache.match('./index.html') || await cache.match(req, { ignoreSearch: true });
       if (cached) {
-        // Devuelve rápido lo cacheado y actualiza en segundo plano
-        event.waitUntil(networkPromise);
+        // Actualiza en bg (no esperamos)
+        fetch(req).then(res => {
+          if (res && res.ok) cache.put('./index.html', res.clone());
+        }).catch(() => {});
         return cached;
       }
-      // Si no hay caché, intenta red y cachea
-      const res = await networkPromise;
-      return res || Response.error();
+      // Si no hay en caché, intenta red y guarda copia
+      try {
+        const fresh = await fetch(req);
+        if (fresh && fresh.ok) cache.put('./index.html', fresh.clone());
+        return fresh;
+      } catch {
+        // fallback duro: index precacheado
+        const fallback = await cache.match('./index.html');
+        if (fallback) return fallback;
+        return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' }});
+      }
     })());
     return;
   }
 
-  // 3) Otros (cross-origin/APIs) → pasa directo
-  // (Si quisieras cachearlos, define aquí otra estrategia)
-});
+  // JS/CSS → stale-while-revalidate
+  if (isAsset(req)) {
+    event.respondWith((async () => {
+      const cache = await caches.open(RUNTIME_ASSETS);
+      const cached = await cache.match(req);
+      const networkPromise = fetch(req).then((res) => {
+        if (res && res.ok && isSameOrigin(new URL(req.url))) cache.put(req, res.clone());
+        return res;
+      }).catch(() => null);
+      return cached || networkPromise || new Response('', { status: 504 });
+    })());
+    return;
+  }
 
-// ---------- Mensajes: permitir forzar activación
-self.addEventListener('message', (event) => {
-  const msg = event.data;
-  if (msg && msg.type === 'SKIP_WAITING') {
-    self.skipWaiting();
+  // Imágenes/Fonts → cache-first
+  if (isMedia(req)) {
+    event.respondWith((async () => {
+      const cache = await caches.open(RUNTIME_MEDIA);
+      const cached = await cache.match(req);
+      if (cached) return cached;
+      try {
+        const res = await fetch(req);
+        if (res && res.ok && isSameOrigin(new URL(req.url))) {
+          cache.put(req, res.clone());
+        }
+        return res;
+      } catch {
+        // Podrías devolver una imagen/ico placeholder si quieres
+        return new Response('', { status: 504 });
+      }
+    })());
+    return;
+  }
+
+  // Resto de GET del mismo origen → try cache, fallback red
+  if (isSameOrigin(url)) {
+    event.respondWith((async () => {
+      const cache = await caches.open(RUNTIME_ASSETS);
+      const cached = await cache.match(req);
+      if (cached) return cached;
+      try {
+        const res = await fetch(req);
+        if (res && res.ok) cache.put(req, res.clone());
+        return res;
+      } catch {
+        return new Response('', { status: 504 });
+      }
+    })());
   }
 });

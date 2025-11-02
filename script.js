@@ -49,7 +49,7 @@ const db = fb?.firestore?.();
 const storage = fb?.storage?.();
 
 // Habilita persistencia (si el WebView lo permite)
-if (db && db.enablePersistence) {
+if (db?.enablePersistence) {
   db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 }
 
@@ -123,9 +123,10 @@ let userInteracted = false;
 window.addEventListener('pointerdown', () => (userInteracted = true), { once: true });
 
 // =============================
-// SERVICE WORKER
+// SERVICE WORKER (idempotente)
 // =============================
 if ('serviceWorker' in navigator) {
+  // Si ya está registrado, esto no rompe nada.
   navigator.serviceWorker.register('sw.js').catch(console.error);
 }
 
@@ -341,8 +342,111 @@ q6Radios.forEach(r => r.addEventListener('change', () => {
 }));
 
 // =============================
-// ENVÍO → FIREBASE
+// OFFLINE QUEUE (IndexedDB) PARA FOTOS
 // =============================
+const IDB_NAME = 'offline-outbox';
+const IDB_STORE = 'uploads';
+const isOnline = () => navigator.onLine;
+
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(IDB_NAME, 1);
+    r.onupgradeneeded = () => r.result.createObjectStore(IDB_STORE, { keyPath: 'id' });
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function idbPut(item){
+  const dbx = await idbOpen();
+  await new Promise((res, rej) => {
+    const tx = dbx.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(item);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+  dbx.close();
+}
+async function idbAll(){
+  const dbx = await idbOpen();
+  const items = await new Promise((res, rej) => {
+    const tx = dbx.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).getAll();
+    req.onsuccess = () => res(req.result || []);
+    req.onerror = () => rej(req.error);
+  });
+  dbx.close(); return items;
+}
+async function idbDel(id){
+  const dbx = await idbOpen();
+  await new Promise((res, rej) => {
+    const tx = dbx.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(id);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+  dbx.close();
+}
+
+// =============================
+// ENVÍO → FIREBASE (OFFLINE-FIRST)
+// =============================
+function makeDocId(payload){
+  const rnd = Math.random().toString(36).slice(2,8);
+  return `${payload.referenciaQR}_${Date.now()}_${rnd}`;
+}
+
+async function uploadAndPatch(docId, path, blob){
+  const ref = storage.ref().child(path);
+  await ref.put(blob, { contentType: blob.type });
+  const url = await ref.getDownloadURL();
+  await db.collection(FIRE_COLLECTION).doc(docId).update({
+    evidenciaUrl: url,
+    pendingUpload: false,
+    reconnectedAt: new Date().toISOString()
+  });
+}
+
+async function queueUpload(docId, path, blob){
+  const buff = await blob.arrayBuffer();
+  await idbPut({
+    id: `${docId}::${path}`,
+    docId, path,
+    queuedAt: new Date().toISOString(),
+    blobType: blob.type,
+    blobData: buff
+  });
+  showToast('Evidencia en cola offline.', 'offline');
+}
+
+async function processOutbox(){
+  if (!storage || !db) return;
+  const items = await idbAll();
+  if (!items.length) return;
+
+  showSaving('Sincronizando evidencia…');
+  for (const it of items) {
+    try {
+      if (!isOnline()) break;
+      const blob = new Blob([it.blobData], { type: it.blobType || 'image/jpeg' });
+      await uploadAndPatch(it.docId, it.path, blob);
+      await idbDel(it.id);
+    } catch (e) {
+      console.warn('Reintento pendiente:', it.id, e?.message);
+      // se mantiene en cola para el próximo intento
+    }
+  }
+  hideSaving();
+}
+
+// Disparadores de sincronización
+window.addEventListener('online', () => {
+  showToast('Conexión recuperada. Sincronizando…', 'success');
+  processOutbox();
+});
+window.addEventListener('offline', () => {
+  showToast('Sin conexión. Trabajando offline.', 'offline');
+});
+// Intento periódico por si el evento 'online' no dispara en WebView
+setInterval(() => { if (isOnline()) processOutbox(); }, 30_000);
+
 formSinNovedad?.addEventListener('submit', async e => {
   e.preventDefault();
   if (!currentScannedData) return showToast('Primero escanea un punto.', 'error');
@@ -353,7 +457,7 @@ formSinNovedad?.addEventListener('submit', async e => {
     nombreAgente: nombre, observacion: '', tipo: 'SIN NOVEDAD', fotoDataUrl: '', preguntas: {}
   });
 
-  showSaving('Guardando en Firebase…');
+  showSaving('Guardando…');
   await sendToFirebase(payload);
   formSinNovedad.reset();
   showUI('scanner'); cameraMsg?.classList.add('active');
@@ -380,7 +484,7 @@ formConNovedad?.addEventListener('submit', async e => {
     preguntas: { p1,p2,p3,p4,p5,p6,p6Comentario }
   });
 
-  showSaving('Guardando en Firebase…');
+  showSaving('Guardando…');
   await sendToFirebase(payload);
   formConNovedad.reset(); resetEvidence(); resetQuestions();
   showUI('scanner'); cameraMsg?.classList.add('active');
@@ -406,41 +510,45 @@ async function sendToFirebase(payload) {
     return;
   }
 
-  try {
-    // 1) Subir evidencia (si hay)
-    let fotoUrl = '';
-    if (payload.fotoDataUrl && storage) {
-      const stamp = Date.now();
-      const safeName = (payload.nombreAgente || 'anon').replace(/[^\w.-]+/g, '_');
-      const path = `evidencias/${payload.referenciaQR}/${stamp}_${safeName}.jpg`;
-      const blob = dataURLtoBlob(payload.fotoDataUrl);
-      const ref = storage.ref().child(path);
-      await ref.put(blob, { contentType: blob.type });
-      fotoUrl = await ref.getDownloadURL();
+  // 0) Generar docId estable para poder actualizarlo luego
+  const docId = makeDocId(payload);
+
+  // 1) Crea el doc base (Firestore sincroniza solo cuando vuelva la red)
+  const baseDoc = {
+    punto: payload.puntoMarcacion,
+    referenciaQR: payload.referenciaQR,
+    nombreAgente: payload.nombreAgente,
+    observacion: payload.observacion,
+    tipo: payload.tipo,                // "SIN NOVEDAD" | "CON NOVEDAD"
+    preguntas: payload.preguntas || {},
+    evidenciaUrl: '',                  // se actualizará si hay imagen
+    fechaHoraISO: payload.fechaHoraISO,
+    createdAt: fb.firestore.FieldValue.serverTimestamp(),
+    meta: payload.meta || {},
+    pendingUpload: !!payload.fotoDataUrl
+  };
+  await db.collection(FIRE_COLLECTION).doc(docId).set(baseDoc);
+
+  // 2) Manejo de evidencia (Storage NO es offline → usar cola)
+  if (payload.fotoDataUrl && storage) {
+    const stamp = Date.now();
+    const safeName = (payload.nombreAgente || 'anon').replace(/[^\w.-]+/g, '_');
+    const storagePath = `evidencias/${payload.referenciaQR}/${stamp}_${safeName}.jpg`;
+    const blob = dataURLtoBlob(payload.fotoDataUrl);
+
+    if (isOnline()) {
+      try {
+        await uploadAndPatch(docId, storagePath, blob);
+      } catch (e) {
+        await queueUpload(docId, storagePath, blob);
+      }
+    } else {
+      await queueUpload(docId, storagePath, blob);
     }
-
-    // 2) Guardar doc en Firestore
-    const docData = {
-      punto: payload.puntoMarcacion,
-      referenciaQR: payload.referenciaQR,
-      nombreAgente: payload.nombreAgente,
-      observacion: payload.observacion,
-      tipo: payload.tipo,                // "SIN NOVEDAD" | "CON NOVEDAD"
-      preguntas: payload.preguntas || {},
-      evidenciaUrl: fotoUrl || '',
-      fechaHoraISO: payload.fechaHoraISO,
-      createdAt: fb.firestore.FieldValue.serverTimestamp(),
-      meta: payload.meta || {}
-    };
-    await db.collection(FIRE_COLLECTION).add(docData);
-
-    showSaved('Guardado');
-    showToast('Registro guardado en Firebase.', 'success');
-  } catch (err) {
-    console.error(err);
-    hideSaving();
-    showToast('No se pudo guardar en Firebase.', 'error');
   }
+
+  showSaved('Guardado');
+  showToast(isOnline() ? 'Registro guardado.' : 'Guardado offline. Se sincronizará al volver la red.', isOnline() ? 'success' : 'offline');
 }
 
 // =============================
@@ -458,3 +566,4 @@ function showToast(msg, type = 'info') {
 // =============================
 showUI('scanner');
 cameraMsg?.classList.add('active');  // Mostrar “INICIAR RONDAS”
+processOutbox(); // intentar sincronizar al abrir, por si hay cola pendiente

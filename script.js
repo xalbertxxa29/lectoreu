@@ -227,7 +227,10 @@ function tickEnhanced() {
       if (punto) {
         stopScanner();
         currentScannedData = { referencia: normalized, puntoMarcacion: punto };
-        if (scannedPointName) scannedPointName.textContent = punto;
+        if (scannedPointName) {
+          scannedPointName.textContent = punto;
+          scannedPointName.style.color = '#42a5f5'; // Asegura el color azul
+        }
         scannerContainer.style.display = 'none';
         optionsContainer.style.display = 'flex';
         if (userInteracted && navigator.vibrate) { try { navigator.vibrate(150); } catch {} }
@@ -236,7 +239,7 @@ function tickEnhanced() {
       } else {
         scanAttempts++;
         if (scanAttempts > MAX_ATTEMPTS) {
-          showToast(`QR no reconocido. Intenta acercar o enfocar mejor.`, 'error');
+          showToast(`QR not recognized. Try moving closer or focusing better.`, 'error');
           scanAttempts = 0;
         }
       }

@@ -1,34 +1,34 @@
 // ====== MAPA DE REFERENCIAS (QR → Punto de Marcación) ======
 const REFERENCIA_MAP = {
-  "1761055082506": "1",
-  "1761055097257": "2",
-  "1761055105341": "3",
-  "1761055598535": "4",
-  "1761055619574": "5",
-  "1761055731912": "6",
-  "1761055748808": "7",
-  "1761055758075": "8",
-  "1761055765742": "9",
-  "1761056924033": "10",
-  "1761056935227": "11",
-  "1761056952702": "12",
-  "1761056960727": "13",
-  "1761056968594": "14",
-  "1761056974553": "15",
-  "1761058333445": "16",
-  "1761058340305": "17",
-  "1761058346339": "18",
-  "1761058353137": "19",
-  "1761058359372": "20",
-  "1761058367017": "21",
-  "1761058388859": "22",
-  "1761058395655": "23",
-  "1761058402461": "24",
-  "1761058423101": "25",
-  "1761058429185": "27",
-  "1761058447734": "28",
-  "1761058454312": "29",
-  "1761058460400": "30",
+  "1761055082506": "Main Entrance",
+  "1761055097257": "Everglades Conf.Rm",
+  "1761055105341": "Alligator Alley",
+  "1761055598535": "N.W. Entrance (Lab)",
+  "1761055619574": "Warehouse Offices (S.W.)",
+  "1761055731912": "Loading Dock",
+  "1761055748808": "Penthouse Stairwell",
+  "1761055758075": "Circulation Area",
+  "1761055765742": "Women's Lockers (S.E.)",
+  "1761056924033": "Men's Lockers (S. E.)",
+  "1761056935227": "Conf. Rm.1062 (S.E.)",
+  "1761056952702": "Break Room",
+  "1761056960727": "Document Control Rm",
+  "1761056968594": "The Beach Lobby (N.E)",
+  "1761056974553": "Executive Offices (N.E.)",
+  "1761058333445": "Hallway 121",
+  "1761058340305": "Hallway 122",
+  "1761058346339": "Hallway 123",
+  "1761058353137": "Hallway 124",
+  "1761058359372": "Hallway 125",
+  "1761058367017": "Hallway 126",
+  "1761058388859": "Hallway 127",
+  "1761058395655": "Hallway 128",
+  "1761058402461": "Hallway 129",
+  "1761058423101": "Hallway 130",
+  "1761058429185": "Hallway 132",
+  "1761058447734": "Hallway 133",
+  "1761058454312": "Hallway 134",
+  "1761058460400": "Hallway 135",
   "1760037324942": "MARCACION QR"
 };
 
@@ -153,13 +153,29 @@ function startScanner() {
   currentScannedData = null;
   cameraMsg?.classList.remove('active');
 
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+  // Aumentar resolución y optimizar constraints
+  const constraints = {
+    video: {
+      facingMode: 'environment',
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      focusMode: 'continuous' // algunos navegadores soportan esto
+    }
+  };
+
+  navigator.mediaDevices.getUserMedia(constraints)
     .then(s => {
       stream = s;
       video.srcObject = stream;
-      return video.play();
+      // Esperar a que el video tenga datos suficientes
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => {
+          video.play();
+          resolve();
+        };
+      });
     })
-    .then(() => requestAnimationFrame(tick))
+    .then(() => requestAnimationFrame(tickEnhanced))
     .catch(err => {
       console.error('Error de cámara:', err.name, err.message);
       cameraMsg?.classList.add('active');
@@ -185,13 +201,22 @@ function drawPath(loc) {
   canvas.stroke();
 }
 
-function tick() {
+// Escaneo mejorado: más frames, mayor resolución, reintentos
+let scanAttempts = 0;
+const MAX_ATTEMPTS = 30;
+function tickEnhanced() {
   if (video.readyState === video.HAVE_ENOUGH_DATA) {
-    canvasElement.height = video.videoHeight || 480;
-    canvasElement.width  = video.videoWidth  || 640;
-    canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+    // Usar la máxima resolución disponible
+    const w = video.videoWidth || 1280;
+    const h = video.videoHeight || 720;
+    canvasElement.width = w;
+    canvasElement.height = h;
+    canvas.drawImage(video, 0, 0, w, h);
 
-    const imgData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+    // Mejorar contraste y brillo si es posible
+    // (opcional: se puede agregar procesamiento de imagen aquí)
+
+    const imgData = canvas.getImageData(0, 0, w, h);
     const code = (typeof jsQR === 'function') ? jsQR(imgData.data, imgData.width, imgData.height) : null;
 
     if (code && code.data) {
@@ -206,13 +231,24 @@ function tick() {
         scannerContainer.style.display = 'none';
         optionsContainer.style.display = 'flex';
         if (userInteracted && navigator.vibrate) { try { navigator.vibrate(150); } catch {} }
+        scanAttempts = 0;
         return;
       } else {
-        showToast(`QR no reconocido: ${normalized}`, 'error');
+        scanAttempts++;
+        if (scanAttempts > MAX_ATTEMPTS) {
+          showToast(`QR no reconocido. Intenta acercar o enfocar mejor.`, 'error');
+          scanAttempts = 0;
+        }
+      }
+    } else {
+      scanAttempts++;
+      if (scanAttempts > MAX_ATTEMPTS) {
+        showToast('No se detecta QR. Intenta mejorar la iluminación o enfocar.', 'error');
+        scanAttempts = 0;
       }
     }
   }
-  requestAnimationFrame(tick);
+  requestAnimationFrame(tickEnhanced);
 }
 
 // =============================

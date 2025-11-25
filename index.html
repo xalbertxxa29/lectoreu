@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Control de Marcación</title>
+  <title>Check-in Control</title>
 
   <!-- PWA -->
   <meta name="theme-color" content="#000000" />
@@ -61,123 +61,123 @@
 <body>
   <noscript>
     <div style="padding:12px;background:#222;color:#fff;text-align:center">
-      Esta aplicación requiere JavaScript habilitado para funcionar (incluyendo el modo offline).
+      This application requires JavaScript enabled to work (including offline mode).
     </div>
   </noscript>
 
-  <!-- Cámara / Scanner -->
+  <!-- Camera / Scanner -->
   <div id="scanner-container">
     <video id="video" playsinline></video>
     <div id="scan-box-overlay"></div>
-    <div class="scanner-header">Apunte al código QR</div>
+    <div class="scanner-header">Point at the QR code</div>
   </div>
 
-  <!-- Canvas oculto -->
+  <!-- Hidden canvas -->
   <canvas id="canvas" hidden></canvas>
 
-  <!-- Modal tras escanear -->
+  <!-- Modal after scan -->
   <div id="options-container" class="modal-container" style="display:none;">
     <div class="modal-content">
-      <h3>Punto de Marcación</h3>
+      <h3>Check-in Point</h3>
       <p id="scanned-point-name">—</p>
       <div class="button-group">
-        <button id="btn-con-novedad" class="btn-novedad btn btn-warn">CON NOVEDAD</button>
-        <button id="btn-sin-novedad" class="btn-normal btn btn-primary">SIN NOVEDAD</button>
+        <button id="btn-con-novedad" class="btn-novedad btn btn-warn">WITH INCIDENT</button>
+        <button id="btn-sin-novedad" class="btn-normal btn btn-primary">NO INCIDENT</button>
       </div>
-      <button id="btn-cancel-scan" class="btn-cancel btn">Cancelar</button>
+      <button id="btn-cancel-scan" class="btn-cancel btn">Cancel</button>
     </div>
   </div>
 
-  <!-- Formulario SIN NOVEDAD -->
+  <!-- NO INCIDENT form -->
   <div id="form-sin-novedad-container" class="modal-container" style="display:none;">
     <div class="modal-content">
-      <h3>Registro Sin Novedad</h3>
-      <p>Punto: <strong id="point-name-sin-novedad"></strong></p>
+      <h3>No Incident Record</h3>
+      <p>Point: <strong id="point-name-sin-novedad"></strong></p>
       <form id="form-sin-novedad">
-        <input type="text" id="agent-name-sin-novedad" placeholder="Ingrese su Nombre y Apellido" required />
-        <button type="submit" class="btn-submit btn btn-primary">Aceptar y Guardar</button>
-        <button type="button" class="btn-cancel form-cancel btn">Cancelar</button>
+        <input type="text" id="agent-name-sin-novedad" placeholder="Enter your Name and Surname" required />
+        <button type="submit" class="btn-submit btn btn-primary">Accept and Save</button>
+        <button type="button" class="btn-cancel form-cancel btn">Cancel</button>
       </form>
     </div>
   </div>
 
-  <!-- Formulario CON NOVEDAD -->
+  <!-- WITH INCIDENT form -->
   <div id="form-con-novedad-container" class="modal-container" style="display:none;">
     <div class="modal-content">
-      <h3>Registro Con Novedad</h3>
-      <p>Punto: <strong id="point-name-con-novedad"></strong></p>
+      <h3>Incident Record</h3>
+      <p>Point: <strong id="point-name-con-novedad"></strong></p>
       <form id="form-con-novedad">
-        <input type="text" id="agent-name-con-novedad" placeholder="Ingrese su Nombre y Apellido" required />
-        <textarea id="observation-text" placeholder="Describa la observación aquí..." rows="4" required></textarea>
+        <input type="text" id="agent-name-con-novedad" placeholder="Enter your Name and Surname" required />
+        <textarea id="observation-text" placeholder="Describe the observation here..." rows="4" required></textarea>
 
         <ol class="questions">
           <li class="q-item">
-            <p class="q-text">¿El agente cuenta con todos sus EPPs reglamentarios, en buen estado y correctamente colocados durante toda su jornada?</p>
+            <p class="q-text">Does the agent have all required PPE in good condition and properly worn during the entire shift?</p>
             <div class="q-options">
-              <label><input type="radio" name="q1" value="SI"> SI</label>
+              <label><input type="radio" name="q1" value="YES"> YES</label>
               <label><input type="radio" name="q1" value="NO"> NO</label>
             </div>
           </li>
 
           <li class="q-item">
-            <p class="q-text">¿Conoce y aplica correctamente los procedimientos operativos establecidos para su puesto específico?</p>
+            <p class="q-text">Does the agent know and correctly apply the operational procedures for their specific post?</p>
             <div class="q-options">
-              <label><input type="radio" name="q2" value="SI"> SI</label>
+              <label><input type="radio" name="q2" value="YES"> YES</label>
               <label><input type="radio" name="q2" value="NO"> NO</label>
             </div>
           </li>
 
           <li class="q-item">
-            <p class="q-text">¿Mantiene una actitud vigilante, postura adecuada y atención constante a su entorno?</p>
+            <p class="q-text">Does the agent maintain a vigilant attitude, proper posture, and constant attention to their surroundings?</p>
             <div class="q-options">
-              <label><input type="radio" name="q3" value="SI"> SI</label>
+              <label><input type="radio" name="q3" value="YES"> YES</label>
               <label><input type="radio" name="q3" value="NO"> NO</label>
             </div>
           </li>
 
           <li class="q-item">
-            <p class="q-text">¿Registra y reporta oportunamente cualquier novedad, incidente o situación fuera de lo común?</p>
+            <p class="q-text">Does the agent record and report any incident or unusual situation in a timely manner?</p>
             <div class="q-options">
-              <label><input type="radio" name="q4" value="SI"> SI</label>
+              <label><input type="radio" name="q4" value="YES"> YES</label>
               <label><input type="radio" name="q4" value="NO"> NO</label>
             </div>
           </li>
 
           <li class="q-item">
-            <p class="q-text">¿Cuenta con medios de comunicación operativos y responde de forma oportuna a llamados del supervisor o centro de control?</p>
+            <p class="q-text">Does the agent have operational communication devices and respond promptly to supervisor or control center calls?</p>
             <div class="q-options">
-              <label><input type="radio" name="q5" value="SI"> SI</label>
+              <label><input type="radio" name="q5" value="YES"> YES</label>
               <label><input type="radio" name="q5" value="NO"> NO</label>
             </div>
           </li>
 
           <li class="q-item">
-            <p class="q-text">¿Reportará algo inusual encontrado en el puesto?</p>
+            <p class="q-text">Will the agent report anything unusual found at the post?</p>
             <div class="q-options">
-              <label><input type="radio" name="q6" value="SI"> SI</label>
+              <label><input type="radio" name="q6" value="YES"> YES</label>
               <label><input type="radio" name="q6" value="NO"> NO</label>
             </div>
             <div class="q6-comment-wrap hidden">
-              <textarea id="q6-comment" rows="3" placeholder="Describe brevemente lo inusual..."></textarea>
+              <textarea id="q6-comment" rows="3" placeholder="Briefly describe what was unusual..."></textarea>
             </div>
           </li>
         </ol>
 
-        <!-- Evidencia -->
+        <!-- Evidence -->
         <div class="evidence-block">
-          <label class="evidence-title">Evidencia (opcional)</label>
+          <label class="evidence-title">Evidence (optional)</label>
           <div class="evidence-actions">
-            <button type="button" id="btn-evidencia" class="btn btn-warn">TOMAR EVIDENCIA</button>
+            <button type="button" id="btn-evidencia" class="btn btn-warn">TAKE EVIDENCE</button>
             <input type="file" id="evidence-input" accept="image/*" capture="environment" hidden />
           </div>
           <div class="evidence-preview" id="evidence-preview-wrap" style="display:none;">
-            <img id="evidence-preview" alt="Vista previa evidencia" />
-            <button type="button" id="evidence-remove" class="btn">Quitar</button>
+            <img id="evidence-preview" alt="Evidence preview" />
+            <button type="button" id="evidence-remove" class="btn">Remove</button>
           </div>
         </div>
 
-        <button type="submit" class="btn-submit btn btn-primary">Aceptar y Guardar</button>
-        <button type="button" class="btn-cancel form-cancel btn">Cancelar</button>
+        <button type="submit" class="btn-submit btn btn-primary">Accept and Save</button>
+        <button type="button" class="btn-cancel form-cancel btn">Cancel</button>
       </form>
     </div>
   </div>
@@ -185,7 +185,7 @@
   <!-- Toast -->
   <div id="status-toast" class=""></div>
 
-  <!-- Overlay guardado -->
+  <!-- Saving overlay -->
   <div id="saving-overlay" aria-hidden="true">
     <div class="so-backdrop"></div>
     <div class="so-card" role="dialog" aria-live="polite" aria-busy="true">
@@ -195,35 +195,35 @@
           <path d="M20 6L9 17l-5-5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </div>
-      <div id="saving-msg" class="so-msg">Guardando…</div>
+      <div id="saving-msg" class="so-msg">Saving…</div>
     </div>
   </div>
 
-  <!-- Mensaje de cámara (INICIAR RONDAS + PLAY) -->
+  <!-- Camera permission message (START ROUNDS + PLAY) -->
   <div id="camera-permission-msg">
     <div class="msg-box" role="dialog" aria-live="polite" aria-modal="true">
-      <h3>INICIAR RONDAS</h3>
-      <button id="start-scan-cta" class="btn-play" type="button" aria-label="Iniciar escáner QR">
+      <h3>START ROUNDS</h3>
+      <button id="start-scan-cta" class="btn-play" type="button" aria-label="Start QR scanner">
         <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
           <path d="M8 5v14l11-7z" fill="currentColor"></path>
         </svg>
         <span>PLAY</span>
       </button>
-      <p class="hint">Al tocar “PLAY” se solicitará el permiso de cámara.</p>
+      <p class="hint">By tapping “PLAY” camera permission will be requested.</p>
     </div>
   </div>
 
-  <!-- Sheet de evidencia (Cámara / Galería) -->
+  <!-- Evidence sheet (Camera / Gallery) -->
   <div id="sheet-evidencia" class="sheet hidden" role="dialog" aria-modal="true">
     <div class="sheet-card">
-      <h3>Agregar evidencia</h3>
-      <button id="opt-cam" class="btn btn-primary">Abrir cámara</button>
-      <button id="opt-gal" class="btn">Adjuntar desde galería</button>
-      <button id="opt-cancelar" class="btn btn-ghost">Cancelar</button>
+      <h3>Add evidence</h3>
+      <button id="opt-cam" class="btn btn-primary">Open camera</button>
+      <button id="opt-gal" class="btn">Attach from gallery</button>
+      <button id="opt-cancelar" class="btn btn-ghost">Cancel</button>
     </div>
   </div>
 
-  <!-- Input de galería adicional -->
+  <!-- Additional gallery input -->
   <input id="evidence-input-gallery" type="file" accept="image/*" hidden />
 </body>
 </html>

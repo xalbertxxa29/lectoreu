@@ -54,7 +54,7 @@ if (db?.enablePersistence) {
 }
 
 // ===== Colección destino en Firestore =====
-const FIRE_COLLECTION = 'RONDAS';
+const FIRE_COLLECTION = 'IncidenciasEU';
 
 // =============================
 // ELEMENTOS DE UI

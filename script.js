@@ -76,6 +76,24 @@ const btnCancelScan = document.getElementById('btn-cancel-scan');
 const formSinNovedad = document.getElementById('form-sin-novedad');
 const formConNovedad = document.getElementById('form-con-novedad');
 
+// Geolocation
+let currentLocation = null;
+function getLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        currentLocation = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        };
+      },
+      err => { currentLocation = null; },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }
+}
+
 const statusToast = document.getElementById('status-toast');
 const pointNameSin = document.getElementById('point-name-sin-novedad');
 const pointNameCon = document.getElementById('point-name-con-novedad');
@@ -292,7 +310,9 @@ document.querySelectorAll('.form-cancel').forEach(b => b.addEventListener('click
 }));
 startScanCta?.addEventListener('click', () => {
   startScanCta.disabled = true; startScanCta.style.opacity = '.7';
-  showUI('scanner'); startScanner();
+  showUI('scanner');
+  getLocation(); // Captura ubicación al iniciar escaneo
+  startScanner();
 });
 
 // =============================
@@ -504,26 +524,22 @@ formSinNovedad?.addEventListener('submit', async e => {
 
 formConNovedad?.addEventListener('submit', async e => {
   e.preventDefault();
-  if (!currentScannedData) return showToast('Primero escanea un punto.', 'error');
+  if (!currentScannedData) return showToast('Scan a point first.', 'error');
   const nombre = document.getElementById('agent-name-con-novedad').value.trim();
   const obs = document.getElementById('observation-text').value.trim();
-  if (!nombre) return showToast('Ingresa tu Nombre y Apellido.', 'error');
+  if (!nombre) return showToast('Enter your Name and Surname.', 'error');
 
-  const getVal = n => document.querySelector(`input[name="${n}"]:checked`)?.value || '';
-  const [p1,p2,p3,p4,p5,p6] = ['q1','q2','q3','q4','q5','q6'].map(getVal);
-  if (![p1,p2,p3,p4,p5,p6].every(v => v === 'SI' || v === 'NO'))
-    return showToast('Responde todas las preguntas (1–6).', 'error');
-  const p6Comentario = (p6 === 'SI') ? q6Comment?.value.trim() : '';
-
+  // Solo nombre, observación, evidencia y ubicación
   const payload = buildPayload({
     nombreAgente: nombre,
     observacion: obs,
-    tipo: 'CON NOVEDAD',
+    tipo: 'INCIDENT',
     fotoDataUrl: evidenceDataUrl,
-    preguntas: { p1,p2,p3,p4,p5,p6,p6Comentario }
+    preguntas: {},
+    ubicacion: currentLocation
   });
 
-  showSaving('Guardando…');
+  showSaving('Saving…');
   await sendToFirebase(payload);
   formConNovedad.reset(); resetEvidence(); resetQuestions();
   showUI('scanner'); cameraMsg?.classList.add('active');
@@ -535,6 +551,7 @@ function buildPayload({ nombreAgente, observacion, tipo, fotoDataUrl, preguntas 
     referenciaQR: currentScannedData.referencia,
     fechaHoraISO: new Date().toISOString(),
     nombreAgente, observacion, tipo, fotoDataUrl, preguntas,
+    ubicacion,
     meta: {
       ua: navigator.userAgent || '',
       platform: navigator.platform || '',

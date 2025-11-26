@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:5100", "http://localhost:5200", "http://localhost:6100", "https://xalbertxxa29.github.io", "https://github.io"],
+    "method": ["GET", "POST", "PUT", "OPTIONS"],
+    "maxAgeSeconds": 3600,
+    "responseHeader": ["Authorization", "Content-Type", "x-firebase-auth"]
+  }
+]

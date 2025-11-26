@@ -597,7 +597,7 @@ formConNovedad?.addEventListener('submit', async e => {
   const obs = document.getElementById('observation-text').value.trim();
   if (!nombre) return showToast('Enter your Name and Surname.', 'error');
 
-  // Solo nombre, observación, evidencia y ubicación
+  // Only name, observation, evidence, and location
   const payload = buildPayload({
     nombreAgente: nombre,
     observacion: obs,
@@ -609,7 +609,7 @@ formConNovedad?.addEventListener('submit', async e => {
 
   showSaving('Saving…');
   await sendToFirebase(payload);
-  formConNovedad.reset(); resetEvidence(); resetQuestions();
+  formConNovedad.reset(); resetEvidence(); /* no resetQuestions() since questions are removed */
   showUI('scanner'); cameraMsg?.classList.add('active');
 });
 

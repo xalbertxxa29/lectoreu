@@ -108,6 +108,71 @@ const evidenceWrap = document.getElementById('evidence-preview-wrap');
 const evidenceBtn = document.getElementById('btn-evidencia');
 const evidenceRemove = document.getElementById('evidence-remove');
 
+// Cámara para evidencia
+let evidenceStream = null;
+const evidenceVideo = document.createElement('video');
+evidenceVideo.setAttribute('playsinline', '');
+evidenceVideo.style.width = '100%';
+evidenceVideo.style.maxHeight = '320px';
+evidenceVideo.style.borderRadius = '10px';
+evidenceVideo.style.marginBottom = '10px';
+let evidenceCanvas = null;
+let evidenceCaptureBtn = null;
+
+function openEvidenceCamera() {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } })
+    .then(stream => {
+      evidenceStream = stream;
+      evidenceVideo.srcObject = stream;
+      evidenceVideo.play();
+      showEvidenceCameraUI();
+    })
+    .catch(() => {
+      showToast('Could not access camera.', 'error');
+    });
+}
+
+function showEvidenceCameraUI() {
+  // Crear canvas y botón si no existen
+  if (!evidenceCanvas) {
+    evidenceCanvas = document.createElement('canvas');
+    evidenceCanvas.style.display = 'none';
+    evidenceCanvas.style.marginBottom = '10px';
+  }
+  if (!evidenceCaptureBtn) {
+    evidenceCaptureBtn = document.createElement('button');
+    evidenceCaptureBtn.textContent = 'Capture Photo';
+    evidenceCaptureBtn.className = 'btn btn-primary';
+    evidenceCaptureBtn.style.marginBottom = '10px';
+    evidenceCaptureBtn.onclick = captureEvidencePhoto;
+  }
+  // Mostrar en el modal de evidencia
+  evidenceWrap.innerHTML = '';
+  evidenceWrap.appendChild(evidenceVideo);
+  evidenceWrap.appendChild(evidenceCanvas);
+  evidenceWrap.appendChild(evidenceCaptureBtn);
+  evidenceWrap.style.display = 'flex';
+}
+
+function captureEvidencePhoto() {
+  const w = evidenceVideo.videoWidth || 1280;
+  const h = evidenceVideo.videoHeight || 720;
+  evidenceCanvas.width = w;
+  evidenceCanvas.height = h;
+  evidenceCanvas.getContext('2d').drawImage(evidenceVideo, 0, 0, w, h);
+  const dataUrl = evidenceCanvas.toDataURL('image/jpeg', 0.85);
+  evidencePreview.src = dataUrl;
+  evidenceDataUrl = dataUrl;
+  evidenceWrap.innerHTML = '';
+  evidenceWrap.appendChild(evidencePreview);
+  evidenceWrap.appendChild(evidenceRemove);
+  evidenceWrap.style.display = 'flex';
+  if (evidenceStream) {
+    evidenceStream.getTracks().forEach(t => t.stop());
+    evidenceStream = null;
+  }
+}
+
 // === Sheet evidencia (Cámara / Galería) ===
 const sheetEvid = document.getElementById('sheet-evidencia');
 const optCam = document.getElementById('opt-cam');
@@ -119,7 +184,10 @@ function openSheet()  { sheetEvid?.classList.remove('hidden'); }
 function closeSheet() { sheetEvid?.classList.add('hidden'); }
 optCancelar?.addEventListener('click', closeSheet);
 sheetEvid?.addEventListener('click', (e)=>{ if(e.target === sheetEvid) closeSheet(); });
-evidenceBtn?.addEventListener('click', (e)=>{ e.preventDefault(); openSheet(); });
+evidenceBtn?.addEventListener('click', (e)=>{
+  e.preventDefault();
+  openEvidenceCamera();
+});
 optCam?.addEventListener('click', ()=>{ evidenceInput?.click(); closeSheet(); });
 optGal?.addEventListener('click', ()=>{ evidenceInputGallery?.click(); closeSheet(); });
 

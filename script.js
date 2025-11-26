@@ -619,7 +619,7 @@ function buildPayload({ nombreAgente, observacion, tipo, fotoDataUrl, preguntas 
     referenciaQR: currentScannedData.referencia,
     fechaHoraISO: new Date().toISOString(),
     nombreAgente, observacion, tipo, fotoDataUrl, preguntas,
-    ubicacion,
+    ubicacion: typeof arguments[0].ubicacion !== 'undefined' ? arguments[0].ubicacion : currentLocation,
     meta: {
       ua: navigator.userAgent || '',
       platform: navigator.platform || '',
